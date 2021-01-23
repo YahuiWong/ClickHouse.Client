@@ -112,16 +112,17 @@ namespace ClickHouse.Client.Copy
             bool hasMore = false;
             do
             {
+                token.ThrowIfCancellationRequested();
                 var stream = new MemoryStream() { Capacity = 4 * 1024 };
                 int counter = 0;
-                using var gzipStream = new BufferedStream(new GZipStream(stream, CompressionLevel.Fastest, true), 4 * 1024);
-                if (useInlineQuery)
+                using (var gzipStream = new BufferedStream(new GZipStream(stream, CompressionLevel.Fastest, true), 4 * 1024))
                 {
-                    using var textWriter = new StreamWriter(gzipStream, Encoding.UTF8, 4 * 1024, true);
-                    textWriter.WriteLine(query);
-                }
+                    if (useInlineQuery)
+                    {
+                        using var textWriter = new StreamWriter(gzipStream, Encoding.UTF8, 4 * 1024, true);
+                        textWriter.WriteLine(query);
+                    }
 
-                {
                     using var writer = new ExtendedBinaryWriter(gzipStream);
                     using var streamer = new BinaryStreamWriter(writer);
 
@@ -135,6 +136,7 @@ namespace ClickHouse.Client.Copy
                         counter++;
                     }
                 }
+
                 token.ThrowIfCancellationRequested();
                 stream.Seek(0, SeekOrigin.Begin);
 
